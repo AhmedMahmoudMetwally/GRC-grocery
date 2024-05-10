@@ -46,7 +46,6 @@ server <- function(input, output) {
     # Outliers only exist in count column
     # but they do not seem like errors
     # highest value is 32 so i will keep them
-    output$outlierT = renderPlot({boxplot(data$total)$out})
     outlierT = boxplot(data$total)$out
     outlierR = boxplot(data$rnd)$out
     outlierA = boxplot(data$age)$out
