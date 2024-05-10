@@ -128,9 +128,9 @@ server <- function(input, output) {
     # Group by city and calculate sum of total spending for each city
     citySpending <- aggregate(total ~ city, data = data, FUN = sum)
     
-    # Create a barplot
+    # Create a scatterplot
     ggplot_city <- ggplot(citySpending, aes(x = reorder(city, -total), y = total)) +
-      geom_bar(stat = "identity", fill = "skyblue") +
+      geom_point(stat = "identity", fill = "skyblue") +
       labs(title = "Total Spending by City (Descending)",
            x = "City",
            y = "Total Spending") +
