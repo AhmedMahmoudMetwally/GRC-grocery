@@ -1,12 +1,3 @@
-# install the libraries if they are missing
-
-install.packages(reader)
-install.packages(arules)
-install.packages(dplyr)
-install.packages(ggplot2)
-install.packages(gridExtra)
-install.packages(shiny)
-
 # Libraries used
 library(arules)
 library(reader)
@@ -15,23 +6,23 @@ library(ggplot2)
 library(gridExtra)
 library(shiny)
 
-
 # UI
 ui <- fluidPage(
-  titlePanel("GRC-grocery"),
+  titlePanel("GRC-grocery Analysis"),
   sidebarLayout(
     sidebarPanel(
       textInput("path", "Dataset Path"),
       numericInput("n_clusters", "Number of Clusters", value = 3, min = 2, max = 4),
-      sliderInput("min_support", "Minimum Support (%)", min = 0.1, max = 1, value = 0.2),
-      sliderInput("min_confidence", "Minimum Confidence (%)", min = 0.1, max = 1, value = 0.5),
-      actionButton("start", "Calculate")
+      sliderInput("min_support", "Minimum Support (%)", min = 0.001, max = 1, value = 0.5),
+      sliderInput("min_confidence", "Minimum Confidence (%)", min = 0.001, max = 1, value = 0.5),
+      actionButton("start", "Start analysis")
     ),
     mainPanel(
       h3("Results"),
       plotOutput("finalgrid"),
       textOutput("assoc_rules"),
-      dataTableOutput("table")
+      dataTableOutput("table"),
+      tableOutput("rules_table")
     )
   )
 )
@@ -39,15 +30,23 @@ ui <- fluidPage(
 # Server logic
 server <- function(input, output) {
   observeEvent(input$start, {
+    
+    # Read path to csv file
+    data = read.csv(paste(input$path))
+    
     # Read the user input for minimum support and confidence
     min_support = as.numeric(input$min_support)
     min_confidence = as.numeric(input$min_confidence)
+    
     # Read the number of clusters from user input
     num_clusters = input$n_clusters
-    data = read.csv(paste(input$path))
-    output$outlierT = renderPlot({
-      boxplot(data$total)$out
-    })
+    
+    # Checks if outliers exist and removes them
+    
+    # Outliers only exist in count column
+    # but they do not seem like errors
+    # highest value is 32 so i will keep them
+    output$outlierT = renderPlot({boxplot(data$total)$out})
     outlierT = boxplot(data$total)$out
     outlierR = boxplot(data$rnd)$out
     outlierA = boxplot(data$age)$out
@@ -61,6 +60,8 @@ server <- function(input, output) {
       data <- data[-which(data$total%in%outlierA)]
     }
     
+    # Checks if data structure is correct and corrects them
+    # All are false. No changes made.
     if (!is.integer(data$total)){
       as.integer(data$total)
     }
@@ -78,6 +79,7 @@ server <- function(input, output) {
     if (sum(is.na(data)) > 0){
       na.omit(data) # No NA values
     }
+    
     # Remove duplicts if exist
     if (sum(duplicated(data)) > 0){
       data<-distinct(data) # Two duplicated records removed
@@ -99,7 +101,7 @@ server <- function(input, output) {
     pie_colors <- c("#0072B2", "#009E73")
     
     # Create pie chart with improved labels and colors
-    pie_chart <- ggplot(payment_data, aes(x = "", y = count, fill = paymentType, label = paste0(paymentType, ": ", round(count / sum(count) * 100, 2), "%"))) +
+    pie_chart <- ggplot(payment_data, aes(x = "", y = count, fill = paymentType, label = paste0(round(count / sum(count) * 100, 2), "%"))) +
       geom_bar(stat = "identity", width = 1) +
       coord_polar("y", start = 0) +
       labs(title = "Comparison of Cash and Credit Payments",
@@ -149,8 +151,8 @@ server <- function(input, output) {
     output$finalgrid = renderPlot({
       grid.arrange(pie_chart, bar_plot_age, ggplot_city, histogram,
                    ncol = 2, nrow = 2,
-                   top = "Dashboard")
-    })
+                   top = "Dashboard")})
+    
     # Function to perform kmeans clustering
     perform_clustering <- function(data, num_clusters) {
       
@@ -188,7 +190,6 @@ server <- function(input, output) {
       return(rules)
     }
     
-    
     # Check if the input is within the specified range
     if (min_support < 0.001 || min_support > 1 || min_confidence < 0.001 || min_confidence > 1) {
       stop("Minimum support and confidence must be between 0.001 and 1.")
@@ -197,13 +198,17 @@ server <- function(input, output) {
     # Generate association rules
     association_rules <- generate_association_rules(data$items, min_support, min_confidence)
     
-    # Print the association rules
-    print(association_rules)
+    # Output the generated association rules as a table
+    output$rules_table <- renderTable({
+      if (is.null(generate_association_rules)) {
+        return(NULL)
+      } else {
+        inspect(association_rules)
+      }
+    })
     
+    # Output the generated k-means
     output$table = renderDataTable(customerClusters)
-    
-    
-    
   })
   
 }
